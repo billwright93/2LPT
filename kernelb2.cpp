@@ -176,87 +176,34 @@ static double HA1(double a, double omega0){
   	return 3.*omega0/(2.*HA(a,omega0)*HA(a,omega0)*pow(a,3))
   	;}
 
+
+
+	//1st order
+
   /* Parameters passed to system of Euler and continuity equations*/
   // k (magnitude) and x (angular) values for the system of equations
   // k1.k2=k1k2x2 , k1.k3 = k1k3x3, k2.k3=k2k3x1
   // EDIT : Add in new gravity parameters to this list as required (par1 is the nDGP parameter omega_rc as default)
   struct param_type3 {
-    double kk1;
-    double xx1;
-  	double kk2;
-    double xx2;
-  	double kk3;
-    double xx3;
+    double kk;
   	double omega00;
   	double par1;
   	double par2;
   	double par3;
   };
 
-
-  // F1(k1,k2)=G[0], G1(k1,k2)=G[1], F3(k1,k2,k3)=G[10], G3[k1,k2,k3]=G[11]
-  // Other G[i] are used to construct symmetrized kernels used in G3,F3 equations as well as RSD A-term
-
   int funcn1(double a, const double G[], double F[], void *params)
   {
   	param_type3 p = *(param_type3 *)(params);
-  	double k1 = p.kk1;
-  	double x1= p.xx1;
-  	double k2 = p.kk2;
-  	double x2= p.xx2;
-  	double k3 = p.kk3;
-  	double x3= p.xx3;
+  	double k = p.kk;
   	double omega0 = p.omega00;
   	double p1 = p.par1;
   	double p2 = p.par2;
   	double p3 = p.par3;
 
-/*
-		//1st order
-		//1. F1/G1(k)
-		F[0] = -G[1]/a;
-		F[1] =1./a*(-(2.-HA2(a,omega0))*G[1]-HA2(a,omega0)*G[0]*mu(a,k1,omega0,p1,p2,p3));
 
-		//2. F1/G1(k-p)
-		F[2] = -G[3]/a;
-		F[3] =1./a*(-(2.-HA2(a,omega0))*G[3]-HA2(a,omega0)*G[2]*mu(a,sqrt(k2*k2+k1*k1-2*k2*k1*x2),omega0,p1,p2,p3));
-
-		//3. F1/G1(p)
-		F[4] = -G[5]/a;
-		F[5] =1./a*(-(2.-HA2(a,omega0))*G[5]-HA2(a,omega0)*G[4]*mu(a,k2,omega0,p1,p2,p3));
-
-		// 2nd order
-
-		//4. F2/G2(p,k-p) (P22)
-		F[6] =1/a*(-(alpha(k2,sqrt(k2*k2+k1*k1-2*k2*k1*x2),(k1*x2-k2)/sqrt(k2*k2+k1*k1-2*k2*k1*x2))*G[5]*G[2]+alpha(sqrt(k2*k2+k1*k1-2*k2*k1*x2),k2,(k1*x2-k2)/sqrt(k2*k2+k1*k1-2*k2*k1*x2))*G[3]*G[4])/2.-G[7]);
-		F[7] =1/a*(-(2.-HA2(a,omega0))*G[7]-HA2(a,omega0)*G[6]*mu(a,k1,omega0,p1,p2,p3) - gamma2(a, omega0, k1, k2,sqrt(k2*k2+k1*k1-2*k2*k1*x2),(k1*x2-k2)/sqrt(k2*k2+k1*k1-2*k2*k1*x2),p1,p2,p3)*G[4]*G[2] - beta1(k2,sqrt(k2*k2+k1*k1-2*k2*k1*x2),(k1*x2-k2)/sqrt(k2*k2+k1*k1-2*k2*k1*x2))*G[5]*G[3]);
-
-
-		//5. F2/G2(-k,k-p)
-		F[8] =1/a*(-(alpha(k1,sqrt(k2*k2+k1*k1-2*k2*k1*x2),(k2*x2-k1)/sqrt(k2*k2+k1*k1-2*k2*k1*x2))*G[1]*G[2]+alpha(sqrt(k2*k2+k1*k1-2*k2*k1*x2),k1,(k2*x2-k1)/sqrt(k2*k2+k1*k1-2*k2*k1*x2))*G[3]*G[0])/2.-G[9]);
-		F[9] =1/a*(-(2.-HA2(a,omega0))*G[9]-HA2(a,omega0)*G[8]*mu(a,k2,omega0,p1,p2,p3) - gamma2(a, omega0, k1, k1, sqrt(k2*k2+k1*k1-2*k2*k1*x2),(k2*x2-k1)/sqrt(k2*k2+k1*k1-2*k2*k1*x2),p1,p2,p3)*G[2]*G[0] - beta1(k1,sqrt(k2*k2+k1*k1-2*k2*k1*x2),(k2*x2-k1)/sqrt(k2*k2+k1*k1-2*k2*k1*x2))*G[3]*G[1]);
-
-
-
-		//6. F2/G2(p,-p)
-		F[10] =1./a*(-alpha(k2,k3,x1)*G[5]*G[4]-G[11]) ;
-		F[11] =1./a*(-(2.-HA2(a,omega0))*G[11]-HA2(a,omega0)*G[10]*mu(a,0,omega0,p1,p2,p3) - gamma2(a, omega0, k1, k2,k3,x1,p1,p2,p3)*G[4]*G[4]-beta1(k2,k3,x1)*G[5]*G[5]);
-
-
-
-		//7. F2/G2(p,k)
-		F[12] =1/a*(-(alpha(k2,k1,x2)*G[5]*G[0]+alpha(k1,k2,x2)*G[1]*G[4])/2.-G[13]) ;
-		F[13] =1/a*(-(2.-HA2(a,omega0))*G[13]-HA2(a,omega0)*G[12]*mu(a,sqrt(k2*k2+k1*k1+2*k2*k1*x2),omega0,p1,p2,p3) - gamma2(a, omega0, k1, k2,k1,x2,p1,p2,p3)*G[4]*G[0]-beta1(k2,k1,x2)*G[5]*G[1]);
-
-
-
-		//8. F2/G2(-p,k)=F2/G2(p,-k)
-		F[14] =1/a*(-(alpha(k3,k1,x3)*G[5]*G[0]+alpha(k1,k3,x3)*G[1]*G[4])/2.-G[15]) ;
-		F[15] =1/a*(-(2.-HA2(a,omega0))*G[15]-HA2(a,omega0)*G[14]*mu(a,sqrt(k2*k2+k1*k1-2*k2*k1*x2),omega0,p1,p2,p3) -gamma2(a, omega0, k1, k3,k1,x3,p1,p2,p3)*G[4]*G[0]-beta1(k3,k1,x3)*G[5]*G[1]);
-	*/
-
-		//9. D1/dD1(k1)
-		F[1] = - HA(a,omega0)*G[1] + (3./2.)*omega0*HA(a,omega0)*HA(a,omega0)*mu(a, k1, omega0, p1, p2, p3)*G[0];
+		//1st order: D1/dD1(k1)
+		F[1] = - HA(a,omega0)*G[1] + (3./2.)*omega0*HA(a,omega0)*HA(a,omega0)*mu(a, k, omega0, p1, p2, p3)*G[0];
 		F[0] = G[1];
 
   	return GSL_SUCCESS;
@@ -278,127 +225,41 @@ static double HA1(double a, double omega0){
   // EDIT : Add in new gravity parameters to function's input as required (par1 is the nDGP parameter omega_rc as default)
   // EDIT : if more than 1 gravity parameter is needed, one must also edit initn function in SPT.h file.
 
-  int initn(double A, double YMIN, double YMAX, double k, double omega0, double par1, double par2, double par3)
+  int initn(double A, double k, double omega0, double par1, double par2, double par3)
   {
   //#pragma omp parallel for schedule(dynamic)
-  	for ( int i = 0; i <= n1; ++i)//i < n1; ++i)//
-  	{
-  		for (int j = 0; j< n2; ++j)
-  		{
-  				double x1,x2,x3,k1,k2,k3;
 
-  				/* k - magnitude sampling */
-  				    double R = (YMIN) * exp(j*log(YMAX/YMIN)/(n2*1.-1.)); //exponential sampling
-  				//	double R = (j*1.)/(n2*1.-1)*YMAX + YMIN; // linear sampling
-  				//	double R = pow2(j*1./(n2*1.-1))*YMAX+YMIN; //quadratic sampling
+			// Initial scale factor for solving system of equations
+			//Sets 1-3
+				double a = 0.0001;
 
-  				//k,k1,-k1
+				// Einstein de Sitter initial condtions for 1st order growth factor and derivative
 
-  				/*Parameter selection for kernels */
-
-  				k1 = k;
-  		    k2 = k*R;
-  				k3 = k2;
-
-  				x1 = XMIN;
-  		    	if (i>=n1/2.+1.) {
-  					x2 = XMAX - pow((i-n1*1./2.-1.)/(n1/2.-1.),2)*(XMAX-2./n1); // quadratic sampling
-  				//	x2 = XMAX*exp((k-n1/2.-1)*log(1./(n1/2.))/(n1/2-1)); //exponential sampling
-  				}
-  				else if (i<=n1/2.-1.) {
-  					x2 = XMIN + pow(i/(n1/2.-1.),2)*(XMAX-2./n1);
-  				//	x2 = XMIN*exp(k*log(1./(n1/2))/(n1/2-1));// exponential sampling
-  				}
-  				else {
-  					x2=0.;
-  				}
-  				//x2 = XMIN + (XMAX-XMIN)*k/n1; //linear sampling
-  				x3 = -x2;
-
-					// Initial scale factor for solving system of equations
-					//Sets 1-3
-						double a = 0.0001;
-
-						// Einstein de Sitter initial condtions for 2nd order kernels
-
-						//4. F2/G2(p,k-p) (P22)
-						double Edsf2=a*a*(10./14.*alphas(k2,sqrt(k2*k2+k1*k1-2*k2*k1*x2),(k1*x2-k2)/sqrt(k2*k2+k1*k1-2*k2*k1*x2))+ 2./7.*beta1(k2,sqrt(k2*k2+k1*k1-2*k2*k1*x2),(k1*x2-k2)/sqrt(k2*k2+k1*k1-2*k2*k1*x2)));
-						double Edsg2=a*a*(6./14.*alphas(k2,sqrt(k2*k2+k1*k1-2*k2*k1*x2),(k1*x2-k2)/sqrt(k2*k2+k1*k1-2*k2*k1*x2))+ 4./7.*beta1(k2,sqrt(k2*k2+k1*k1-2*k2*k1*x2),(k1*x2-k2)/sqrt(k2*k2+k1*k1-2*k2*k1*x2)));
-
-						//5. F2/G2(-k,k-p)
-						double EdsF2C=a*a*(10./14.*alphas(k1,sqrt(k2*k2+k1*k1-2*k2*k1*x2),(k2*x2-k1)/sqrt(k2*k2+k1*k1-2*k2*k1*x2))+ 2./7.*beta1(k1,sqrt(k2*k2+k1*k1-2*k2*k1*x2),(k2*x2-k1)/sqrt(k2*k2+k1*k1-2*k2*k1*x2)));
-						double EdsG2C=a*a*(6./14.*alphas(k1,sqrt(k2*k2+k1*k1-2*k2*k1*x2),(k2*x2-k1)/sqrt(k2*k2+k1*k1-2*k2*k1*x2)) + 4./7.*beta1(k1,sqrt(k2*k2+k1*k1-2*k2*k1*x2),(k2*x2-k1)/sqrt(k2*k2+k1*k1-2*k2*k1*x2)));
-
-						//6. F2/G2(p,-p)
-						double EdsF2A= a*a*(10./14.*alphas(k2,k3,x1)+ 2./7.*beta1(k2,k3,x1));
-						double EdsG2A= a*a*(6./14.*alphas(k2,k3,x1)+ 4./7.*beta1(k2,k3,x1));
-						//7. F2/G2(p,k)
-						double EdsF2B= a*a*(10./14.*alphas(k2,k1,x2)+ 2./7.*beta1(k2,k1,x2));
-						double EdsG2B= a*a*(6./14.*alphas(k2,k1,x2) + 4./7.*beta1(k2,k1,x2));
-						//8. F2/G2(-p,k)=F2/G2(p,-k)
-						double Edsf2d= a*a*(10./14.*alphas(k3,k1,x3)+ 2./7.*beta1(k3,k1,x3));
-						double Edsg2d= a*a*(6./14.*alphas(k3,k1,x3)+ 4./7.*beta1(k3,k1,x3));
-
-						//double G[18] = { a,-a,a,-a,a,-a,  Edsf2 ,Edsg2,  EdsF2C, EdsG2C, EdsF2A, EdsG2A , EdsF2B,  EdsG2B, Edsf2d, Edsg2d, a, a}; // initial conditions
-						double G[2] = {a, a*HA(a, omega0)}//, -(3./7.)*a, -(3./7.)*a*HA(a, omega0)}; // initial conditions
+				//double G[18] = { a,-a,a,-a,a,-a,  Edsf2 ,Edsg2,  EdsF2C, EdsG2C, EdsF2A, EdsG2A , EdsF2B,  EdsG2B, Edsf2d, Edsg2d, a, a}; // initial conditions
+				double G[2] = {a, a*HA(a, omega0)}//, -(3./7.)*a, -(3./7.)*a*HA(a, omega0)}; // initial conditions
   // Non-Eds ICs
   		//	  double G[16] = { a,-a,a,-a,a,-a, 0.,0.,0.,0.,0.,0.,0.,0.,0.,0.};
 
-  			/*Parameters passed to system of equations */
+  		/*Parameters passed to system of equations */
   // EDIT : If more than one gravity parameter is used, add them after p1
-  				struct param_type3 my_params1 = {k1,x1,k2,x2,k3,x3,omega0, par1, par2, par3};
+  		struct param_type3 my_params1 = {k,omega0, par1, par2, par3};
 
-  				gsl_odeiv2_system sys = {funcn1, jac, 2, &my_params1};
+  		gsl_odeiv2_system sys = {funcn1, jac, 2, &my_params1};
 
-  			//  this gives the system, the method, the initial interval step, the absolute error and the relative error.
-  				gsl_odeiv2_driver * d =
-  				gsl_odeiv2_driver_alloc_y_new (&sys, gsl_odeiv2_step_rk8pd,
-  										   1e-6, 1e-6, 0.0);
+  		//  this gives the system, the method, the initial interval step, the absolute error and the relative error.
+  		gsl_odeiv2_driver * d =
+  		gsl_odeiv2_driver_alloc_y_new (&sys, gsl_odeiv2_step_rk8pd,
+  										1e-6, 1e-6, 0.0);
 
-  				int status1 = gsl_odeiv2_driver_apply (d, &a, A, G);
+  		int status1 = gsl_odeiv2_driver_apply (d, &a, A, G);
 
+  	/*Allocation of array values */
 
-  				/*Allocation of array values */
+		//D1/D1'(k)
+		D1  = G[0];
+		dD1 = G[1];
 
-/*
-  			//F1(k;a), G1(k;a)
-  			F1_nk = G[0];
-  			G1_nk = G[1];
-
-  			// F1(k-p;a), G1(k-p;a)
-  			F1kmp_nk[i*n2 + j] = G[2];
-  			G1kmp_nk[i*n2 + j] = G[3];
-
-  			//F1(p;a), G1(p;a)
-  			F1p_nk[i*n2 + j] = G[4];
-  			G1p_nk[i*n2 + j] = G[5];
-
-  			//2nd order
-
-  			//F2/G2(p,k-p) (P22)
-  			F2_nk[i*n2 + j] =  G[6];
-  			G2_nk[i*n2 + j] =  G[7];
-
-  			//F2/G2(-k,k-p)
-  			F2C_nk[i*n2 + j] =  G[8];
-  			G2C_nk[i*n2 + j] =  G[9];
-
-  			//F2/G2(p,k)
-  			F2A_nk[i*n2 + j] =  G[12];
-  			G2A_nk[i*n2 + j] =  G[13];
-
-  			//F2/G2(p,-k)
-  			F2B_nk[i*n2 + j] =  G[14];
-  			G2B_nk[i*n2 + j] =  G[15];
-			*/
-
-				//D1/D1'(k)
-				D1  = G[0];
-				dD1 = G[1];
-
-  			gsl_odeiv2_driver_free(d);
-  		}
-  	}
+  	gsl_odeiv2_driver_free(d);
 
 		++count;
 		//std::cout << "F2 calculations:" << count << "\n";
@@ -406,67 +267,39 @@ static double HA1(double a, double omega0){
   	return 0;
   }
 
+
+	//2nd order
+
+	struct param_type4 {
+    double kk;
+		double kk1;
+		double kk2;
+		double kk1dotkk2;
+  	double omega00;
+  	double par1;
+  	double par2;
+  	double par3;
+		int ii;
+		int jj;
+  };
+
 	int funcn2(double a, const double G[], double F[], void *params)
   {
-  	param_type3 p = *(param_type3 *)(params);
-  	double k1 = p.kk1;
-  	double x1= p.xx1;
-  	double k2 = p.kk2;
-  	double x2= p.xx2;
-  	double k3 = p.kk3;
-  	double x3= p.xx3;
+  	param_type4 p = *(param_type4 *)(params);
+		double k      = p.kk;
+		double k1     = p.kk1;
+  	double k2     = p.kk2;
+  	double k1dotk2  = p.kk1dotkk2;
   	double omega0 = p.omega00;
-  	double p1 = p.par1;
-  	double p2 = p.par2;
-  	double p3 = p.par3;
+  	double p1     = p.par1;
+  	double p2     = p.par2;
+  	double p3     = p.par3;
+		int i 				= p.ii; // FIX
+		int j					= p.jj; // FIX
 
-/*
-		//1st order
-		//1. F1/G1(k)
-		F[0] = -G[1]/a;
-		F[1] =1./a*(-(2.-HA2(a,omega0))*G[1]-HA2(a,omega0)*G[0]*mu(a,k1,omega0,p1,p2,p3));
-
-		//2. F1/G1(k-p)
-		F[2] = -G[3]/a;
-		F[3] =1./a*(-(2.-HA2(a,omega0))*G[3]-HA2(a,omega0)*G[2]*mu(a,sqrt(k2*k2+k1*k1-2*k2*k1*x2),omega0,p1,p2,p3));
-
-		//3. F1/G1(p)
-		F[4] = -G[5]/a;
-		F[5] =1./a*(-(2.-HA2(a,omega0))*G[5]-HA2(a,omega0)*G[4]*mu(a,k2,omega0,p1,p2,p3));
-
-		// 2nd order
-
-		//4. F2/G2(p,k-p) (P22)
-		F[6] =1/a*(-(alpha(k2,sqrt(k2*k2+k1*k1-2*k2*k1*x2),(k1*x2-k2)/sqrt(k2*k2+k1*k1-2*k2*k1*x2))*G[5]*G[2]+alpha(sqrt(k2*k2+k1*k1-2*k2*k1*x2),k2,(k1*x2-k2)/sqrt(k2*k2+k1*k1-2*k2*k1*x2))*G[3]*G[4])/2.-G[7]);
-		F[7] =1/a*(-(2.-HA2(a,omega0))*G[7]-HA2(a,omega0)*G[6]*mu(a,k1,omega0,p1,p2,p3) - gamma2(a, omega0, k1, k2,sqrt(k2*k2+k1*k1-2*k2*k1*x2),(k1*x2-k2)/sqrt(k2*k2+k1*k1-2*k2*k1*x2),p1,p2,p3)*G[4]*G[2] - beta1(k2,sqrt(k2*k2+k1*k1-2*k2*k1*x2),(k1*x2-k2)/sqrt(k2*k2+k1*k1-2*k2*k1*x2))*G[5]*G[3]);
-
-
-		//5. F2/G2(-k,k-p)
-		F[8] =1/a*(-(alpha(k1,sqrt(k2*k2+k1*k1-2*k2*k1*x2),(k2*x2-k1)/sqrt(k2*k2+k1*k1-2*k2*k1*x2))*G[1]*G[2]+alpha(sqrt(k2*k2+k1*k1-2*k2*k1*x2),k1,(k2*x2-k1)/sqrt(k2*k2+k1*k1-2*k2*k1*x2))*G[3]*G[0])/2.-G[9]);
-		F[9] =1/a*(-(2.-HA2(a,omega0))*G[9]-HA2(a,omega0)*G[8]*mu(a,k2,omega0,p1,p2,p3) - gamma2(a, omega0, k1, k1, sqrt(k2*k2+k1*k1-2*k2*k1*x2),(k2*x2-k1)/sqrt(k2*k2+k1*k1-2*k2*k1*x2),p1,p2,p3)*G[2]*G[0] - beta1(k1,sqrt(k2*k2+k1*k1-2*k2*k1*x2),(k2*x2-k1)/sqrt(k2*k2+k1*k1-2*k2*k1*x2))*G[3]*G[1]);
-
-
-
-		//6. F2/G2(p,-p)
-		F[10] =1./a*(-alpha(k2,k3,x1)*G[5]*G[4]-G[11]) ;
-		F[11] =1./a*(-(2.-HA2(a,omega0))*G[11]-HA2(a,omega0)*G[10]*mu(a,0,omega0,p1,p2,p3) - gamma2(a, omega0, k1, k2,k3,x1,p1,p2,p3)*G[4]*G[4]-beta1(k2,k3,x1)*G[5]*G[5]);
-
-
-
-		//7. F2/G2(p,k)
-		F[12] =1/a*(-(alpha(k2,k1,x2)*G[5]*G[0]+alpha(k1,k2,x2)*G[1]*G[4])/2.-G[13]) ;
-		F[13] =1/a*(-(2.-HA2(a,omega0))*G[13]-HA2(a,omega0)*G[12]*mu(a,sqrt(k2*k2+k1*k1+2*k2*k1*x2),omega0,p1,p2,p3) - gamma2(a, omega0, k1, k2,k1,x2,p1,p2,p3)*G[4]*G[0]-beta1(k2,k1,x2)*G[5]*G[1]);
-
-
-
-		//8. F2/G2(-p,k)=F2/G2(p,-k)
-		F[14] =1/a*(-(alpha(k3,k1,x3)*G[5]*G[0]+alpha(k1,k3,x3)*G[1]*G[4])/2.-G[15]) ;
-		F[15] =1/a*(-(2.-HA2(a,omega0))*G[15]-HA2(a,omega0)*G[14]*mu(a,sqrt(k2*k2+k1*k1-2*k2*k1*x2),omega0,p1,p2,p3) -gamma2(a, omega0, k1, k3,k1,x3,p1,p2,p3)*G[4]*G[0]-beta1(k3,k1,x3)*G[5]*G[1]);
-	*/
-
-		//10. k.L2(k, k1, theta)
+		//2nd order kernels: k.L2(k, k1, theta) - FIX
 		F[0] = G[1];
-		F[1] = - HA(a, omega0)*G[1] + (3./2.)*omega0*pow2(HA(a, omega0))*mu(a, k1, omega0, p1, p2, p3)*G[0] + (3./2.)*omega0*pow2(HA(a, omega0))*mu(a, k1, omega0, p1, p2, p3)*G[0]*G[0]*(1-pow2(x1)) + 2*gamma2(a, omega0, k1, k2, k3, x3, p1, p2, p3);
+		F[1] = - HA(a, omega0)*G[1] + (3./2.)*omega0*pow2(HA(a, omega0))*mu(a, k, omega0, p1, p2, p3)*G[0] + (3./2.)*omega0*pow2(HA(a, omega0))*mu(a, k, omega0, p1, p2, p3)*G[0]*G[0]*(1-k1dotk2) + 2*gamma2(a, omega0, k1, k2, k3, x3, p1, p2, p3);
 
   	return GSL_SUCCESS;
   }
@@ -490,116 +323,46 @@ static double HA1(double a, double omega0){
   int initn2(double A, double YMIN, double YMAX, double k, double omega0, double par1, double par2, double par3)
   {
   //#pragma omp parallel for schedule(dynamic)
-  	for ( int i = 0; i <= n1; ++i)//i < n1; ++i)//
-  	{
-  		for (int j = 0; j< n2; ++j)
-  		{
-  				double x1,x2,x3,k1,k2,k3;
+		for(int k1_num = 0; k1_num < Nk; k1_num++){
 
-  				/* k - magnitude sampling */
-  				    double R = (YMIN) * exp(j*log(YMAX/YMIN)/(n2*1.-1.)); //exponential sampling
-  				//	double R = (j*1.)/(n2*1.-1)*YMAX + YMIN; // linear sampling
-  				//	double R = pow2(j*1./(n2*1.-1))*YMAX+YMIN; //quadratic sampling
+			for(int k2_num = 0; k2_num < Nk; k2_num++){
 
-  				//k,k1,-k1
+				double k1 = k_min + k1_num*(kmax-kmin)/Nk;
+				double k2 = k_min + k2_num*(kmax-kmin)/Nk;
 
-  				/*Parameter selection for kernels */
+				//k1dotk2/k1k2
+				double k1dotk2 = cos(pi - arccos( (pow2(k1)+pow2(k2)-pow2(k))/(2.*k1*k2) ) ) //pig C++ language here - FIX
 
-  				k1 = k;
-  		    k2 = k*R;
-  				k3 = k2;
+				// Initial scale factor for solving system of equations
+				//Sets 1-3
+				double a = 0.0001;
 
-  				x1 = XMIN;
-  		    	if (i>=n1/2.+1.) {
-  					x2 = XMAX - pow((i-n1*1./2.-1.)/(n1/2.-1.),2)*(XMAX-2./n1); // quadratic sampling
-  				//	x2 = XMAX*exp((k-n1/2.-1)*log(1./(n1/2.))/(n1/2-1)); //exponential sampling
-  				}
-  				else if (i<=n1/2.-1.) {
-  					x2 = XMIN + pow(i/(n1/2.-1.),2)*(XMAX-2./n1);
-  				//	x2 = XMIN*exp(k*log(1./(n1/2))/(n1/2-1));// exponential sampling
-  				}
-  				else {
-  					x2=0.;
-  				}
-  				//x2 = XMIN + (XMAX-XMIN)*k/n1; //linear sampling
-  				x3 = -x2;
+				// Einstein de Sitter initial condtions for 2nd order kernels
 
-					// Initial scale factor for solving system of equations
-					//Sets 1-3
-						double a = 0.0001;
+				//4. F2/G2(p,k-p) (P22)
+				double Edsf2=a*a*(10./14.*alphas(k2,sqrt(k2*k2+k1*k1-2*k2*k1*x2),(k1*x2-k2)/sqrt(k2*k2+k1*k1-2*k2*k1*x2))+ 2./7.*beta1(k2,sqrt(k2*k2+k1*k1-2*k2*k1*x2),(k1*x2-k2)/sqrt(k2*k2+k1*k1-2*k2*k1*x2)));
 
-						// Einstein de Sitter initial condtions for 2nd order kernels
+				//double G[18] = { a,-a,a,-a,a,-a,  Edsf2 ,Edsg2,  EdsF2C, EdsG2C, EdsF2A, EdsG2A , EdsF2B,  EdsG2B, Edsf2d, Edsg2d, a, a}; // initial conditions
+				double G[2] = {-(3./7.)*a, -(3./7.)*a*HA(a, omega0)}; // initial conditions
 
-						//4. F2/G2(p,k-p) (P22)
-						double Edsf2=a*a*(10./14.*alphas(k2,sqrt(k2*k2+k1*k1-2*k2*k1*x2),(k1*x2-k2)/sqrt(k2*k2+k1*k1-2*k2*k1*x2))+ 2./7.*beta1(k2,sqrt(k2*k2+k1*k1-2*k2*k1*x2),(k1*x2-k2)/sqrt(k2*k2+k1*k1-2*k2*k1*x2)));
-						double Edsg2=a*a*(6./14.*alphas(k2,sqrt(k2*k2+k1*k1-2*k2*k1*x2),(k1*x2-k2)/sqrt(k2*k2+k1*k1-2*k2*k1*x2))+ 4./7.*beta1(k2,sqrt(k2*k2+k1*k1-2*k2*k1*x2),(k1*x2-k2)/sqrt(k2*k2+k1*k1-2*k2*k1*x2)));
-
-						//5. F2/G2(-k,k-p)
-						double EdsF2C=a*a*(10./14.*alphas(k1,sqrt(k2*k2+k1*k1-2*k2*k1*x2),(k2*x2-k1)/sqrt(k2*k2+k1*k1-2*k2*k1*x2))+ 2./7.*beta1(k1,sqrt(k2*k2+k1*k1-2*k2*k1*x2),(k2*x2-k1)/sqrt(k2*k2+k1*k1-2*k2*k1*x2)));
-						double EdsG2C=a*a*(6./14.*alphas(k1,sqrt(k2*k2+k1*k1-2*k2*k1*x2),(k2*x2-k1)/sqrt(k2*k2+k1*k1-2*k2*k1*x2)) + 4./7.*beta1(k1,sqrt(k2*k2+k1*k1-2*k2*k1*x2),(k2*x2-k1)/sqrt(k2*k2+k1*k1-2*k2*k1*x2)));
-
-						//6. F2/G2(p,-p)
-						double EdsF2A= a*a*(10./14.*alphas(k2,k3,x1)+ 2./7.*beta1(k2,k3,x1));
-						double EdsG2A= a*a*(6./14.*alphas(k2,k3,x1)+ 4./7.*beta1(k2,k3,x1));
-						//7. F2/G2(p,k)
-						double EdsF2B= a*a*(10./14.*alphas(k2,k1,x2)+ 2./7.*beta1(k2,k1,x2));
-						double EdsG2B= a*a*(6./14.*alphas(k2,k1,x2) + 4./7.*beta1(k2,k1,x2));
-						//8. F2/G2(-p,k)=F2/G2(p,-k)
-						double Edsf2d= a*a*(10./14.*alphas(k3,k1,x3)+ 2./7.*beta1(k3,k1,x3));
-						double Edsg2d= a*a*(6./14.*alphas(k3,k1,x3)+ 4./7.*beta1(k3,k1,x3));
-
-						//double G[18] = { a,-a,a,-a,a,-a,  Edsf2 ,Edsg2,  EdsF2C, EdsG2C, EdsF2A, EdsG2A , EdsF2B,  EdsG2B, Edsf2d, Edsg2d, a, a}; // initial conditions
-						double G[2] = {-(3./7.)*a, -(3./7.)*a*HA(a, omega0)}; // initial conditions
-  // Non-Eds ICs
-  		//	  double G[16] = { a,-a,a,-a,a,-a, 0.,0.,0.,0.,0.,0.,0.,0.,0.,0.};
+  			// Non-Eds ICs
+  		  //double G[16] = { a,-a,a,-a,a,-a, 0.,0.,0.,0.,0.,0.,0.,0.,0.,0.};
 
   			/*Parameters passed to system of equations */
-  // EDIT : If more than one gravity parameter is used, add them after p1
-  				struct param_type3 my_params1 = {k1,x1,k2,x2,k3,x3,omega0, par1, par2, par3};
+  			// EDIT : If more than one gravity parameter is used, add them after p1
+  			struct param_type4 my_params1 = {k, k1, k2, k1dotk2, omega0, par1, par2, par3};
 
-  				gsl_odeiv2_system sys = {funcn2, jac, 2, &my_params1};
+  			gsl_odeiv2_system sys = {funcn2, jac, 2, &my_params1};
 
   			//  this gives the system, the method, the initial interval step, the absolute error and the relative error.
-  				gsl_odeiv2_driver * d =
-  				gsl_odeiv2_driver_alloc_y_new (&sys, gsl_odeiv2_step_rk8pd,
-  										   1e-6, 1e-6, 0.0);
+  			gsl_odeiv2_driver * d =
+  			gsl_odeiv2_driver_alloc_y_new (&sys, gsl_odeiv2_step_rk8pd,
+  										  1e-6, 1e-6, 0.0);
 
-  				int status1 = gsl_odeiv2_driver_apply (d, &a, A, G);
+  			int status1 = gsl_odeiv2_driver_apply (d, &a, A, G);
 
 
-  				/*Allocation of array values */
-
-/*
-  			//F1(k;a), G1(k;a)
-  			F1_nk = G[0];
-  			G1_nk = G[1];
-
-  			// F1(k-p;a), G1(k-p;a)
-  			F1kmp_nk[i*n2 + j] = G[2];
-  			G1kmp_nk[i*n2 + j] = G[3];
-
-  			//F1(p;a), G1(p;a)
-  			F1p_nk[i*n2 + j] = G[4];
-  			G1p_nk[i*n2 + j] = G[5];
-
-  			//2nd order
-
-  			//F2/G2(p,k-p) (P22)
-  			F2_nk[i*n2 + j] =  G[6];
-  			G2_nk[i*n2 + j] =  G[7];
-
-  			//F2/G2(-k,k-p)
-  			F2C_nk[i*n2 + j] =  G[8];
-  			G2C_nk[i*n2 + j] =  G[9];
-
-  			//F2/G2(p,k)
-  			F2A_nk[i*n2 + j] =  G[12];
-  			G2A_nk[i*n2 + j] =  G[13];
-
-  			//F2/G2(p,-k)
-  			F2B_nk[i*n2 + j] =  G[14];
-  			G2B_nk[i*n2 + j] =  G[15];
-			*/
+  			/*Allocation of array values */
 
 				//(k.L2)/d(k.L2)
 				kL2[i*n2 + j]  = G[0];
@@ -640,16 +403,16 @@ int main(int argc, char* argv[]) {
 
 	double p1,p2,p3,p4;
 
-	for(int g = 0 ; g <Na; g++){
+	for(int a_num = 0 ; a_num <Na; a_num++){
 
 		// Example a value
-		double a_val = a_ini + g*(a_fin-a_ini)/Na; //Linear sampling
+		double a_val = a_ini + a_num*(a_fin-a_ini)/Na; //Linear sampling
 		//std::cout << "a:" << a_val << '\n';
 
-		for(int i = 0 ; i < Nk;  i ++) {
+		for(int k_num = 0 ; k_num < Nk;  k_num ++){
 
 			// Example k value
-			double k = kmin + i*(kmax-kmin)/Nk;
+			double k = kmin + k_num*(kmax-kmin)/Nk;
 			//std::cout << "k:" << k << "\n";
 			//std::cout << "mu(k):" << mu(0.1, k, 0.24, 0.0001, 1., 1.) << "\n";
 			double ymin = qmin/k;
@@ -658,30 +421,28 @@ int main(int argc, char* argv[]) {
 			// Format : initn(scale factor, ymin,ymax, k., omega_(total matter), theory parameter1, theory parameter2 ...)
 			// Parameterized magnitude integration q = ky
 			// set k = 1. for scale independant and take the function out of the loop
-			initn(a_val, ymax, ymin , k, 0.24, 0.0001, 1., 1.);//initn(1., ymax, ymin , k, 0.24, 0.0001, 1., 1.);
+			initn(a_val, k, 0.24, 0.0001, 1., 1.);//initn(1., ymax, ymin , k, 0.24, 0.0001, 1., 1.);
+			D1_arr[a_num*k_num + k_num] = D1
+			}
 
-			for(int j = 0; j<n2; j++){
+		for(int k_num = 0 ; k_num < Nk;  k_num ++){
 
-				//std::cout << "j:" << j << "\n";
+				// Example k value
+				double k = kmin + k_num*(kmax-kmin)/Nk;
+				//std::cout << "k:" << k << "\n";
+				//std::cout << "mu(k):" << mu(0.1, k, 0.24, 0.0001, 1., 1.) << "\n";
+				double ymin = qmin/k;
+				double ymax = qmax/k;
 
-				// Value of y where k2 = yk corresponding to the F2 value at [j*n2+m]
-				p1 = (ymin) * exp(j*log(ymax/ymin)/(n2*1.-1.)); //exponential sampling
+				for(int k1_num = 0; k1_num < Nk; k1_num++){
 
-				for(int m = 0; m<n1; m++){
+					double k1 = k_min + k1_num*(kmax-kmin)/Nk;
 
-					//std::cout << "m:" << m << "\n";
+					for(int k2_num = 0; k2_num < Nk; k2_num++){
 
-					//Value of k1.k2/k1k2 = cos(theta) corresponding to the F2 value at [j*n2+m]
-				    if (m>=n1/2.+1.) {
-				  			p2 = XMAX - pow((m-n1*1./2.-1.)/(n1/2.-1.),2)*(XMAX-2./n1); // with quadratic sampling
-				  			}
-				  		else if (m<=n1/2.-1.) {
-				  			p2 = XMIN + pow(m/(n1/2.-1.),2)*(XMAX-2./n1);
-				  			}
-				  		else {
-				  			p2=0.;
-				  			}
+						double k2 = k_min + k2_num*(kmax-kmin)/Nk;
 
+						initn2(a_val, k, 0.24, 0.0001, 1., 1.)
 
 					//F2/G2(p,k)
 				  //p3 = F2A_nk[j*n2+m];
