@@ -8,16 +8,22 @@
 
 #include <iostream>
 
+const double pi = 3.1415926535897;
+
 //F2 calc counter
 int count = 0;
 
 //Kernel array sizes
 
-//angle (x) sampling
-const int n1=2;
+// Number of k-modes you wish to output between kmin and kmax
+const int Nk = 2;
+double kmin = 0.001;//0.01;
+double kmax = 5.;//0.2;
 
-// magnitude (r) sampling
-const int n2=2;
+// Number of time steps you wish to output between a_ini and a_fin
+const int Na = 2;
+double a_ini = 0.0001;
+double a_fin = 1.0;
 
 /*
 //F1[k],G1[k]
@@ -25,39 +31,22 @@ const int n2=2;
 double F1_nk;
 double G1_nk;
 
-//F1[k-p],G1[k-p]
-double F1kmp_nk[(n1+1)*n2];
-double G1kmp_nk[(n1+1)*n2];
-
-//F1[p], G1[p]
-double F1p_nk[(n1+1)*n2];
-double G1p_nk[(n1+1)*n2];
-
-
-//2nd order used in Bispectrum term : F2/G2[p,k]
-double F2A_nk[(n1+1)*n2];
-double G2A_nk[(n1+1)*n2];
-
-//2nd order used in Bispectrum term : F2/G2[-p,k]
-double F2B_nk[(n1+1)*n2];
-double G2B_nk[(n1+1)*n2];
-
-//2nd order used in Bispectrum term : F2/G2[-k,k-p]
-double F2C_nk[(n1+1)*n2];
-double G2C_nk[(n1+1)*n2];
-
 //2nd order used in P22 : F2/G2[k-p, p]
 double F2_nk[(n1+1)*n2];
 double G2_nk[(n1+1)*n2];
 */
+
+//D1 array to store values for 2nd order solver
+double D1_arr[Na*Nk];
+
 
 //D1/D1_dot(k)
 double D1;
 double dD1;
 
 //k.L2(k, k1, theta)
-double kL2[(n1+1)*n2];
-double dkL2[(n1+1)*n2];
+double kL2[Nk*Nk];
+double dkL2[Nk*Nk];
 
 
 ////////  NUMERICAL KERNEL CONSTRUCTION //////////
@@ -161,7 +150,6 @@ static double HA1(double a, double omega0){
 
   ///////// NON-SEPARABLE //////////////
 
-
 	//Jacobian of the system required when calling the system evolver, the below is neither needed, nor correct for solving
 	int jac (double a, const double G[], double *dfdy, double dfdt[], void *params)
 	{
@@ -178,7 +166,7 @@ static double HA1(double a, double omega0){
 
 
 
-	//1st order
+	//1st order//
 
   /* Parameters passed to system of Euler and continuity equations*/
   // k (magnitude) and x (angular) values for the system of equations
@@ -236,8 +224,9 @@ static double HA1(double a, double omega0){
 				// Einstein de Sitter initial condtions for 1st order growth factor and derivative
 
 				//double G[18] = { a,-a,a,-a,a,-a,  Edsf2 ,Edsg2,  EdsF2C, EdsG2C, EdsF2A, EdsG2A , EdsF2B,  EdsG2B, Edsf2d, Edsg2d, a, a}; // initial conditions
-				double G[2] = {a, a*HA(a, omega0)}//, -(3./7.)*a, -(3./7.)*a*HA(a, omega0)}; // initial conditions
-  // Non-Eds ICs
+				double G[2] = {1, a*HA(a, omega0)}//{a, a*HA(a, omega0)};//, -(3./7.)*a, -(3./7.)*a*HA(a, omega0)}; // initial conditions
+
+	// Non-Eds ICs
   		//	  double G[16] = { a,-a,a,-a,a,-a, 0.,0.,0.,0.,0.,0.,0.,0.,0.,0.};
 
   		/*Parameters passed to system of equations */
@@ -279,8 +268,9 @@ static double HA1(double a, double omega0){
   	double par1;
   	double par2;
   	double par3;
-		int ii;
-		int jj;
+		int kk1_num;
+		int kk2_num;
+		int aa_num;
   };
 
 	int funcn2(double a, const double G[], double F[], void *params)
@@ -294,12 +284,15 @@ static double HA1(double a, double omega0){
   	double p1     = p.par1;
   	double p2     = p.par2;
   	double p3     = p.par3;
-		int i 				= p.ii; // FIX
-		int j					= p.jj; // FIX
+		int k1_num 		= p.kk1_num; // FIX
+		int k2_num		= p.kk2_num; // FIX
+		int a_num     = p.aa_num;
 
-		//2nd order kernels: k.L2(k, k1, theta) - FIX
+		//2nd order kernels: k.L2(k, k1, theta)  //pig C++ language here - FIX gamma2
 		F[0] = G[1];
-		F[1] = - HA(a, omega0)*G[1] + (3./2.)*omega0*pow2(HA(a, omega0))*mu(a, k, omega0, p1, p2, p3)*G[0] + (3./2.)*omega0*pow2(HA(a, omega0))*mu(a, k, omega0, p1, p2, p3)*G[0]*G[0]*(1-k1dotk2) + 2*gamma2(a, omega0, k1, k2, k3, x3, p1, p2, p3);
+		F[1] = - HA(a, omega0)*G[1] + (3./2.)*omega0*pow2(HA(a, omega0))*mu(a, k, omega0, p1, p2, p3)*G[0] + (3./2.)*omega0*pow2(HA(a, omega0))*mu(a, k, omega0, p1, p2, p3)*D1_arr[a_num*k1_num + k1_num]*D1_arr[a_num*k2_num + k2_num]*(1-k1dotk2) + 2*gamma2(a, omega0, k, k1, k2, 1., p1, p2, p3); //u1 not needed for f(R), need to FIX for DGP
+
+
 
   	return GSL_SUCCESS;
   }
@@ -309,7 +302,7 @@ static double HA1(double a, double omega0){
   // k loop dictates the angular parameter x =k1.k/(k^2*r)
   // j loop dictates the magnitude of k1 (k1=rk)
 
-  // Default initialization at only scale factor A
+  // Default initialization at only scale factor Bill
   // k is your k vector dependence (See mu(a,k))
   // YMAX = QMAX/kmin and YMIN=QMIN/kmax where kmin and kmax are the k-limits and QMIN and QMAX are k1 limits (integrated over)
   // QMAX => 5, QMIN ~ 0.0005  FOR PS INTEGRALS
@@ -320,18 +313,21 @@ static double HA1(double a, double omega0){
   // EDIT : Add in new gravity parameters to function's input as required (par1 is the nDGP parameter omega_rc as default)
   // EDIT : if more than 1 gravity parameter is needed, one must also edit initn function in SPT.h file.
 
-  int initn2(double A, double YMIN, double YMAX, double k, double omega0, double par1, double par2, double par3)
+  int initn2(int A_num, double A, double k, double omega0, double par1, double par2, double par3)//initn2(int A_num, double A, double k, double omega0, double par1, double par2, double par3)
   {
   //#pragma omp parallel for schedule(dynamic)
 		for(int k1_num = 0; k1_num < Nk; k1_num++){
 
 			for(int k2_num = 0; k2_num < Nk; k2_num++){
 
-				double k1 = k_min + k1_num*(kmax-kmin)/Nk;
-				double k2 = k_min + k2_num*(kmax-kmin)/Nk;
+				double k1 = kmin + k1_num*(kmax-kmin)/Nk;
+				double k2 = kmin + k2_num*(kmax-kmin)/Nk;
 
 				//k1dotk2/k1k2
-				double k1dotk2 = cos(pi - arccos( (pow2(k1)+pow2(k2)-pow2(k))/(2.*k1*k2) ) ) //pig C++ language here - FIX
+				double k1dotk2 = cos(pi - acos( (pow2(k1)+pow2(k2)-pow2(k))/(2.*k1*k2) ) ); //pig C++ language here - FIX
+
+				std::cout << "D1["<< A << ", " << k1 << "]=" << D1_arr[A_num*Nk + k1_num] << '\n';
+				std::cout << "D1["<< A << ", " << k2 << "]=" << D1_arr[A_num*Nk + k2_num] << '\n';
 
 				// Initial scale factor for solving system of equations
 				//Sets 1-3
@@ -340,7 +336,7 @@ static double HA1(double a, double omega0){
 				// Einstein de Sitter initial condtions for 2nd order kernels
 
 				//4. F2/G2(p,k-p) (P22)
-				double Edsf2=a*a*(10./14.*alphas(k2,sqrt(k2*k2+k1*k1-2*k2*k1*x2),(k1*x2-k2)/sqrt(k2*k2+k1*k1-2*k2*k1*x2))+ 2./7.*beta1(k2,sqrt(k2*k2+k1*k1-2*k2*k1*x2),(k1*x2-k2)/sqrt(k2*k2+k1*k1-2*k2*k1*x2)));
+				//double Edsf2=a*a*(10./14.*alphas(k2,sqrt(k2*k2+k1*k1-2*k2*k1*x2),(k1*x2-k2)/sqrt(k2*k2+k1*k1-2*k2*k1*x2))+ 2./7.*beta1(k2,sqrt(k2*k2+k1*k1-2*k2*k1*x2),(k1*x2-k2)/sqrt(k2*k2+k1*k1-2*k2*k1*x2)));
 
 				//double G[18] = { a,-a,a,-a,a,-a,  Edsf2 ,Edsg2,  EdsF2C, EdsG2C, EdsF2A, EdsG2A , EdsF2B,  EdsG2B, Edsf2d, Edsg2d, a, a}; // initial conditions
 				double G[2] = {-(3./7.)*a, -(3./7.)*a*HA(a, omega0)}; // initial conditions
@@ -350,30 +346,39 @@ static double HA1(double a, double omega0){
 
   			/*Parameters passed to system of equations */
   			// EDIT : If more than one gravity parameter is used, add them after p1
-  			struct param_type4 my_params1 = {k, k1, k2, k1dotk2, omega0, par1, par2, par3};
+  			struct param_type4 my_params1 = {k, k1, k2, k1dotk2, omega0, par1, par2, par3, k1_num, k2_num, A_num};//
+
+				std::cout << "Starting solver..." << '\n';
 
   			gsl_odeiv2_system sys = {funcn2, jac, 2, &my_params1};
+
+				std::cout << "Initialised solver" << '\n';
 
   			//  this gives the system, the method, the initial interval step, the absolute error and the relative error.
   			gsl_odeiv2_driver * d =
   			gsl_odeiv2_driver_alloc_y_new (&sys, gsl_odeiv2_step_rk8pd,
   										  1e-6, 1e-6, 0.0);
 
+				std::cout << "Halfway thru sovler" << '\n';
+
   			int status1 = gsl_odeiv2_driver_apply (d, &a, A, G);
 
+				std::cout << "Finished solver" << '\n';
 
   			/*Allocation of array values */
 
 				//(k.L2)/d(k.L2)
-				kL2[i*n2 + j]  = G[0];
-				dkL2[i*n2 + j] = G[1];
+				kL2[k1_num*Nk + k2_num]  = G[0];
+				dkL2[k1_num*Nk + k2_num] = G[1];
+
+				std::cout << "Done: " << k << "/" << k1<< "/" << k2 << '\n';
 
   			gsl_odeiv2_driver_free(d);
   		}
   	}
 
 		++count;
-		//std::cout << "F2 calculations:" << count << "\n";
+		std::cout << "F2 calculations:" << count << "\n";
 
   	return 0;
   }
@@ -388,20 +393,7 @@ int main(int argc, char* argv[]) {
 	/* Open output file */
 	FILE* fp = fopen(output, "w");
 
-	// Number of k-modes you wish to output between kmin and kmax
-	int Nk = 5;
-	double kmin = 0.001;//0.01;
-	double kmax = 5.;//0.2;
-
-	double qmin = 0.001;
-	double qmax = 5.;
-
-  // Number of time steps you wish to output between a_ini and a_fin
-	int Na = 5;
-	double a_ini = 0.0001;
-	double a_fin = 1.0;
-
-	double p1,p2,p3,p4;
+	double p1, p2;
 
 	for(int a_num = 0 ; a_num <Na; a_num++){
 
@@ -415,14 +407,15 @@ int main(int argc, char* argv[]) {
 			double k = kmin + k_num*(kmax-kmin)/Nk;
 			//std::cout << "k:" << k << "\n";
 			//std::cout << "mu(k):" << mu(0.1, k, 0.24, 0.0001, 1., 1.) << "\n";
-			double ymin = qmin/k;
-			double ymax = qmax/k;
 
 			// Format : initn(scale factor, ymin,ymax, k., omega_(total matter), theory parameter1, theory parameter2 ...)
 			// Parameterized magnitude integration q = ky
 			// set k = 1. for scale independant and take the function out of the loop
 			initn(a_val, k, 0.24, 0.0001, 1., 1.);//initn(1., ymax, ymin , k, 0.24, 0.0001, 1., 1.);
-			D1_arr[a_num*k_num + k_num] = D1
+			D1_arr[a_num*Nk + k_num] = D1;
+
+			std::cout << "a, k, D1: " << a_val << " " << k << " " << D1 << '\n';
+
 			}
 
 		for(int k_num = 0 ; k_num < Nk;  k_num ++){
@@ -431,31 +424,31 @@ int main(int argc, char* argv[]) {
 				double k = kmin + k_num*(kmax-kmin)/Nk;
 				//std::cout << "k:" << k << "\n";
 				//std::cout << "mu(k):" << mu(0.1, k, 0.24, 0.0001, 1., 1.) << "\n";
-				double ymin = qmin/k;
-				double ymax = qmax/k;
+
+				initn2(a_num, a_val, k, 0.24, 0.0001, 1., 1.);
 
 				for(int k1_num = 0; k1_num < Nk; k1_num++){
 
-					double k1 = k_min + k1_num*(kmax-kmin)/Nk;
+					double k1 = kmin + k1_num*(kmax-kmin)/Nk;
 
 					for(int k2_num = 0; k2_num < Nk; k2_num++){
 
-						double k2 = k_min + k2_num*(kmax-kmin)/Nk;
+						double k2 = kmin + k2_num*(kmax-kmin)/Nk;
 
-						initn2(a_val, k, 0.24, 0.0001, 1., 1.)
+						//initn2(a_num, a_val, k, 0.24, 0.0001, 1., 1.); //initn2(a_num, a_val, k, 0.24, 0.0001, 1., 1.)
 
-					//F2/G2(p,k)
-				  //p3 = F2A_nk[j*n2+m];
-				  p3 = D1;
-					p4 = kL2[j*n2 + m];
+						//F2/G2(p,k)
+					  //p3 = F2A_nk[j*n2+m];
+						p1 = D1_arr[a_num*k_num + k_num];
+						p2 = kL2[k1_num*Nk+k2_num];
 
-				  std::cout << "a, k, D1, y, x, kL2: " << a_val << " " << k << " " << p3 << " " << p1 << " " << p2 << " " << p4 << '\n';
+					  std::cout << "a, k, k1, k2, kL2: " << a_val << " " << k << " " << k1 << " " << k2 << " " << p1 << '\n';
 
-				  // k, y, x=cos(theta), F2(k, y, x)
-				  // printf("%e %e %e %e \n", k, p1, p2, p3);
-				  fprintf(fp,"%e %e %e %e %e %e \n", a_val, k, p3, p1, p2, p4);//fprintf(fp,"%e %e %e %e \n", k, p1, p2, p3);
-			 	  }
-			  }
+					  // k, y, x=cos(theta), F2(k, y, x)
+					  // printf("%e %e %e %e \n", k, p1, p2, p3);
+					  fprintf(fp,"%e %e %e %e %e %e \n", a_val, k, k1, k2, p1, p2);//fprintf(fp,"%e %e %e %e \n", k, p1, p2, p3);
+			 	  	}
+			  	}
 			/*
 			for(int b=0 ; b<3; b++){
 			 std::cout << "D1[" << b << "]:" << D1[b] << "\n";
