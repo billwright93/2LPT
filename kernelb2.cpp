@@ -16,13 +16,13 @@ int count = 0;
 //Kernel array sizes
 
 // Number of k-modes you wish to output between kmin and kmax
-const int Nk = 2;
-double kmin = 0.001;//0.01;
-double kmax = 5.;//0.2;
+const int Nk = 3;
+double kmin = 0.01;//0.01;
+double kmax = 0.2;//0.2;
 
 // Number of time steps you wish to output between a_ini and a_fin
-const int Na = 2;
-double a_ini = 0.0001;
+const int Na = 100;
+double a_ini = 0.01;
 double a_fin = 1.0;
 
 /*
@@ -72,6 +72,11 @@ static double pow4(double base){
 static double HA(double a, double omega0){
 	double omegaL= 1.-omega0;
 	return  sqrt(omega0/pow(a,3)+omegaL);}
+
+// dH(a)/da
+static double dHA(double a, double omega0){
+	double omegaL= 1.-omega0;
+	return -(3./2.)*(omega0/pow4(a))*(1./(omega0/pow(a,3)+omegaL))*HA(a, omega0);}
 
 static double HA1(double a, double omega0){
 	return -3*omega0/(2.*pow(a,3));}
@@ -127,21 +132,22 @@ static double HA1(double a, double omega0){
 
   static double mu(double a, double k0, double omega0, double p1, double p2, double p3 ){
   	double h0 = 1./2997.9;
-  //	return 1.; // GR
-  	return 1. + pow2(k0/a)/(3.*(pow2(k0/a)+pow3(omega0/pow3(a)-4.*(omega0-1.))/(2.*p1/pow2(h0)*pow2(4-3.*omega0)))); //f(R) Hu- Sawicki
+  	return 1.; // GR
+  //	return 1. + pow2(k0/a)/(3.*(pow2(k0/a)+pow3(omega0/pow3(a)-4.*(omega0-1.))/(2.*p1/pow2(h0)*pow2(4-3.*omega0)))); //f(R) Hu- Sawicki
   //	return 1.+1./(3.*beta(a,omega0,p1)); //nDGP
   }
 
 
   static double gamma2(double a, double omega0, double k0, double k1, double k2, double u1, double p1, double p2, double p3 ){
   	double h0 = 1./2997.9;
-  //	 return 0. ; // GR
+  	 return 0. ; // GR
 
-  	 return -(9.*pow2(k0/a)*pow2(omega0/pow3(a))*pow(omega0-4.*pow3(a)*(-1+omega0),5))/
+  /*	 return -(9.*pow2(k0/a)*pow2(omega0/pow3(a))*pow(omega0-4.*pow3(a)*(-1+omega0),5))/
   			    (48.*pow(a,15)*pow2(p1/pow2(h0))*pow2(HA(a,omega0))*pow4(3.*omega0-4.)
   			   *(pow2(k0/a)+pow3(omega0-4.*pow3(a)*(omega0-1.))/(2.*pow(a,9)*p1/pow2(h0)*pow2(3.*omega0-4.)))
   			   *(pow2(k1/a)+pow3(omega0-4.*pow3(a)*(omega0-1.))/(2.*pow(a,9)*p1/pow2(h0)*pow2(3.*omega0-4.)))
   			   *(pow2(k2/a)+pow3(omega0-4.*pow3(a)*(omega0-1.))/(2.*pow(a,9)*p1/pow2(h0)*pow2(3.*omega0-4.)))); //f(R) Hu- Sawicki
+	*/
 
   //  	return -1.*p2/(HA(a,omega0)*HA(a,omega0)*24.*pow(beta(a,omega0,p1),3)*p1)*pow(omega0/(a*a*a),2)*ker1(u1); //nDGP
   }
@@ -189,10 +195,9 @@ static double HA1(double a, double omega0){
   	double p2 = p.par2;
   	double p3 = p.par3;
 
-
 		//1st order: D1/dD1(k1)
-		F[1] = - HA(a,omega0)*G[1] + (3./2.)*omega0*HA(a,omega0)*HA(a,omega0)*mu(a, k, omega0, p1, p2, p3)*G[0];
 		F[0] = G[1];
+		F[1] = - ((3./a)+(dHA(a, omega0)/HA(a, omega0)))*G[1] + (3./(2.*pow(a, 5.)))*omega0*mu(a, k, omega0, p1, p2, p3)*G[0];
 
   	return GSL_SUCCESS;
   }
@@ -219,12 +224,12 @@ static double HA1(double a, double omega0){
 
 			// Initial scale factor for solving system of equations
 			//Sets 1-3
-				double a = 0.0001;
+				double a = 0.01;//0.0001;
 
 				// Einstein de Sitter initial condtions for 1st order growth factor and derivative
 
 				//double G[18] = { a,-a,a,-a,a,-a,  Edsf2 ,Edsg2,  EdsF2C, EdsG2C, EdsF2A, EdsG2A , EdsF2B,  EdsG2B, Edsf2d, Edsg2d, a, a}; // initial conditions
-				double G[2] = {1, a*HA(a, omega0)}//{a, a*HA(a, omega0)};//, -(3./7.)*a, -(3./7.)*a*HA(a, omega0)}; // initial conditions
+				double G[2] = { 1., (1./a) }; //{a, a*HA(a, omega0)};//, -(3./7.)*a, -(3./7.)*a*HA(a, omega0)}; // initial conditions
 
 	// Non-Eds ICs
   		//	  double G[16] = { a,-a,a,-a,a,-a, 0.,0.,0.,0.,0.,0.,0.,0.,0.,0.};
@@ -233,14 +238,22 @@ static double HA1(double a, double omega0){
   // EDIT : If more than one gravity parameter is used, add them after p1
   		struct param_type3 my_params1 = {k,omega0, par1, par2, par3};
 
+			std::cout << "Starting solver...1" << '\n';
+
   		gsl_odeiv2_system sys = {funcn1, jac, 2, &my_params1};
+
+			std::cout << "Initialised solver1" << '\n';
 
   		//  this gives the system, the method, the initial interval step, the absolute error and the relative error.
   		gsl_odeiv2_driver * d =
   		gsl_odeiv2_driver_alloc_y_new (&sys, gsl_odeiv2_step_rk8pd,
   										1e-6, 1e-6, 0.0);
 
+			std::cout << "Halfway thru sovler1" << '\n';
+
   		int status1 = gsl_odeiv2_driver_apply (d, &a, A, G);
+
+			std::cout << "Finished solver1" << '\n';
 
   	/*Allocation of array values */
 
@@ -290,9 +303,7 @@ static double HA1(double a, double omega0){
 
 		//2nd order kernels: k.L2(k, k1, theta)  //pig C++ language here - FIX gamma2
 		F[0] = G[1];
-		F[1] = - HA(a, omega0)*G[1] + (3./2.)*omega0*pow2(HA(a, omega0))*mu(a, k, omega0, p1, p2, p3)*G[0] + (3./2.)*omega0*pow2(HA(a, omega0))*mu(a, k, omega0, p1, p2, p3)*D1_arr[a_num*k1_num + k1_num]*D1_arr[a_num*k2_num + k2_num]*(1-k1dotk2) + 2*gamma2(a, omega0, k, k1, k2, 1., p1, p2, p3); //u1 not needed for f(R), need to FIX for DGP
-
-
+		F[1] = 1.;//- ((3./a)+(dHA(a, omega0)/HA(a, omega0)))*G[1] + (3./(2.*pow(a, 5.)))*omega0*mu(a, k, omega0, p1, p2, p3)*G[0] + (3./(2.*pow(a, 5.)))*omega0*mu(a, k, omega0, p1, p2, p3)*D1_arr[a_num*k1_num + k1_num]*D1_arr[a_num*k2_num + k2_num]*(1-k1dotk2) + (2./(pow4(a)*pow2(HA(a, omega0))))*gamma2(a, omega0, k, k1, k2, 1., p1, p2, p3); //u1 not needed for f(R), need to FIX for DGP
 
   	return GSL_SUCCESS;
   }
@@ -331,7 +342,7 @@ static double HA1(double a, double omega0){
 
 				// Initial scale factor for solving system of equations
 				//Sets 1-3
-				double a = 0.0001;
+				double a = 0.01;
 
 				// Einstein de Sitter initial condtions for 2nd order kernels
 
@@ -339,31 +350,31 @@ static double HA1(double a, double omega0){
 				//double Edsf2=a*a*(10./14.*alphas(k2,sqrt(k2*k2+k1*k1-2*k2*k1*x2),(k1*x2-k2)/sqrt(k2*k2+k1*k1-2*k2*k1*x2))+ 2./7.*beta1(k2,sqrt(k2*k2+k1*k1-2*k2*k1*x2),(k1*x2-k2)/sqrt(k2*k2+k1*k1-2*k2*k1*x2)));
 
 				//double G[18] = { a,-a,a,-a,a,-a,  Edsf2 ,Edsg2,  EdsF2C, EdsG2C, EdsF2A, EdsG2A , EdsF2B,  EdsG2B, Edsf2d, Edsg2d, a, a}; // initial conditions
-				double G[2] = {-(3./7.)*a, -(3./7.)*a*HA(a, omega0)}; // initial conditions
+				double G[2] = {-(3./7.)*(1.-k1dotk2), -(3./7.)*(1.-k1dotk2)/a}; // initial conditions
 
   			// Non-Eds ICs
   		  //double G[16] = { a,-a,a,-a,a,-a, 0.,0.,0.,0.,0.,0.,0.,0.,0.,0.};
 
   			/*Parameters passed to system of equations */
   			// EDIT : If more than one gravity parameter is used, add them after p1
-  			struct param_type4 my_params1 = {k, k1, k2, k1dotk2, omega0, par1, par2, par3, k1_num, k2_num, A_num};//
+  			struct param_type4 my_params2 = {k, k1, k2, k1dotk2, omega0, par1, par2, par3, k1_num, k2_num, A_num};//
 
-				std::cout << "Starting solver..." << '\n';
+				std::cout << "Starting solver...2" << '\n';
 
-  			gsl_odeiv2_system sys = {funcn2, jac, 2, &my_params1};
+  			gsl_odeiv2_system sys = {funcn2, jac, 2, &my_params2};
 
-				std::cout << "Initialised solver" << '\n';
+				std::cout << "Initialised solver2" << '\n';
 
   			//  this gives the system, the method, the initial interval step, the absolute error and the relative error.
   			gsl_odeiv2_driver * d =
   			gsl_odeiv2_driver_alloc_y_new (&sys, gsl_odeiv2_step_rk8pd,
   										  1e-6, 1e-6, 0.0);
 
-				std::cout << "Halfway thru sovler" << '\n';
+				std::cout << "Halfway thru sovler2" << '\n';
 
   			int status1 = gsl_odeiv2_driver_apply (d, &a, A, G);
 
-				std::cout << "Finished solver" << '\n';
+				std::cout << "Finished solver2" << '\n';
 
   			/*Allocation of array values */
 
@@ -399,7 +410,7 @@ int main(int argc, char* argv[]) {
 
 		// Example a value
 		double a_val = a_ini + a_num*(a_fin-a_ini)/Na; //Linear sampling
-		//std::cout << "a:" << a_val << '\n';
+		std::cout << "a:" << a_num << "  " << a_val << '\n';
 
 		for(int k_num = 0 ; k_num < Nk;  k_num ++){
 
