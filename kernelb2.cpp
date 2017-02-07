@@ -16,12 +16,12 @@ int count = 0;
 //Kernel array sizes
 
 // Number of k-modes you wish to output between kmin and kmax
-const int Nk = 3;
+const int Nk = 2;
 double kmin = 0.01;//0.01;
 double kmax = 0.2;//0.2;
 
 // Number of time steps you wish to output between a_ini and a_fin
-const int Na = 100;
+const int Na = 10;
 double a_ini = 0.01;
 double a_fin = 1.0;
 
@@ -50,12 +50,6 @@ double dkL2[Nk*Nk];
 
 
 ////////  NUMERICAL KERNEL CONSTRUCTION //////////
-
-// angular limits
-//XMAX is set to less than 1 to avoid 2nd order kernel singularity at r->1, x = 1.
-//XMIN is set to greater than -1 because of numerical singularity
-const double XMAX = 0.999999;
-const double XMIN = -1+1e-10;
 
 //Easy power definitions
 static double pow2(double base){
@@ -195,9 +189,24 @@ static double HA1(double a, double omega0){
   	double p2 = p.par2;
   	double p3 = p.par3;
 
+		/*if(a==0.01){
+			std::cout << "a= " << a << '\n';
+			std::cout << "G[0, 1]= " << G[0] << ", " << G[1] << '\n';
+		}*/
+
 		//1st order: D1/dD1(k1)
 		F[0] = G[1];
 		F[1] = - ((3./a)+(dHA(a, omega0)/HA(a, omega0)))*G[1] + (3./(2.*pow(a, 5.)))*omega0*mu(a, k, omega0, p1, p2, p3)*G[0];
+
+		/*if(a==0.01){
+			std::cout << "a= " << a << '\n';
+			std::cout << "F[0, 1]= " << F[0] << ", " << F[1] << '\n';
+		}*/
+
+		if(count==4){
+			std::cout << "a= " << a << '\n';
+			std::cout << "F[0, 1]= " << F[0] << ", " << F[1] << '\n';
+		}
 
   	return GSL_SUCCESS;
   }
@@ -224,7 +233,7 @@ static double HA1(double a, double omega0){
 
 			// Initial scale factor for solving system of equations
 			//Sets 1-3
-				double a = 0.01;//0.0001;
+				double a = a_ini;//0.0001;
 
 				// Einstein de Sitter initial condtions for 1st order growth factor and derivative
 
@@ -238,22 +247,26 @@ static double HA1(double a, double omega0){
   // EDIT : If more than one gravity parameter is used, add them after p1
   		struct param_type3 my_params1 = {k,omega0, par1, par2, par3};
 
-			std::cout << "Starting solver...1" << '\n';
+			/*if(count==6){
+				std::cout << "Should be about to output F array values." << '\n';
+			}*/
+
+			//std::cout << "Starting solver...1" << '\n';
 
   		gsl_odeiv2_system sys = {funcn1, jac, 2, &my_params1};
 
-			std::cout << "Initialised solver1" << '\n';
+			//std::cout << "Initialised solver1" << '\n';
 
   		//  this gives the system, the method, the initial interval step, the absolute error and the relative error.
   		gsl_odeiv2_driver * d =
   		gsl_odeiv2_driver_alloc_y_new (&sys, gsl_odeiv2_step_rk8pd,
   										1e-6, 1e-6, 0.0);
 
-			std::cout << "Halfway thru sovler1" << '\n';
+			//std::cout << "Halfway thru sovler1" << '\n';
 
   		int status1 = gsl_odeiv2_driver_apply (d, &a, A, G);
 
-			std::cout << "Finished solver1" << '\n';
+			//std::cout << "Finished solver1" << '\n';
 
   	/*Allocation of array values */
 
@@ -264,7 +277,7 @@ static double HA1(double a, double omega0){
   	gsl_odeiv2_driver_free(d);
 
 		++count;
-		//std::cout << "F2 calculations:" << count << "\n";
+		std::cout << "F2 calculations:" << count << "\n";
 
   	return 0;
   }
@@ -337,12 +350,12 @@ static double HA1(double a, double omega0){
 				//k1dotk2/k1k2
 				double k1dotk2 = cos(pi - acos( (pow2(k1)+pow2(k2)-pow2(k))/(2.*k1*k2) ) ); //pig C++ language here - FIX
 
-				std::cout << "D1["<< A << ", " << k1 << "]=" << D1_arr[A_num*Nk + k1_num] << '\n';
-				std::cout << "D1["<< A << ", " << k2 << "]=" << D1_arr[A_num*Nk + k2_num] << '\n';
+				//std::cout << "D1["<< A << ", " << k1 << "]=" << D1_arr[A_num*Nk + k1_num] << '\n';
+				//std::cout << "D1["<< A << ", " << k2 << "]=" << D1_arr[A_num*Nk + k2_num] << '\n';
 
 				// Initial scale factor for solving system of equations
 				//Sets 1-3
-				double a = 0.01;
+				double a = a_ini;
 
 				// Einstein de Sitter initial condtions for 2nd order kernels
 
@@ -359,22 +372,22 @@ static double HA1(double a, double omega0){
   			// EDIT : If more than one gravity parameter is used, add them after p1
   			struct param_type4 my_params2 = {k, k1, k2, k1dotk2, omega0, par1, par2, par3, k1_num, k2_num, A_num};//
 
-				std::cout << "Starting solver...2" << '\n';
+				//std::cout << "Starting solver...2" << '\n';
 
   			gsl_odeiv2_system sys = {funcn2, jac, 2, &my_params2};
 
-				std::cout << "Initialised solver2" << '\n';
+				//std::cout << "Initialised solver2" << '\n';
 
   			//  this gives the system, the method, the initial interval step, the absolute error and the relative error.
   			gsl_odeiv2_driver * d =
   			gsl_odeiv2_driver_alloc_y_new (&sys, gsl_odeiv2_step_rk8pd,
   										  1e-6, 1e-6, 0.0);
 
-				std::cout << "Halfway thru sovler2" << '\n';
+				//std::cout << "Halfway thru sovler2" << '\n';
 
   			int status1 = gsl_odeiv2_driver_apply (d, &a, A, G);
 
-				std::cout << "Finished solver2" << '\n';
+				//std::cout << "Finished solver2" << '\n';
 
   			/*Allocation of array values */
 
@@ -382,7 +395,7 @@ static double HA1(double a, double omega0){
 				kL2[k1_num*Nk + k2_num]  = G[0];
 				dkL2[k1_num*Nk + k2_num] = G[1];
 
-				std::cout << "Done: " << k << "/" << k1<< "/" << k2 << '\n';
+				//std::cout << "Done: " << k << "/" << k1<< "/" << k2 << '\n';
 
   			gsl_odeiv2_driver_free(d);
   		}
@@ -425,7 +438,7 @@ int main(int argc, char* argv[]) {
 			initn(a_val, k, 0.24, 0.0001, 1., 1.);//initn(1., ymax, ymin , k, 0.24, 0.0001, 1., 1.);
 			D1_arr[a_num*Nk + k_num] = D1;
 
-			std::cout << "a, k, D1: " << a_val << " " << k << " " << D1 << '\n';
+			//std::cout << "a, k, D1: " << a_val << " " << k << " " << D1 << '\n';
 
 			}
 
@@ -453,7 +466,7 @@ int main(int argc, char* argv[]) {
 						p1 = D1_arr[a_num*k_num + k_num];
 						p2 = kL2[k1_num*Nk+k2_num];
 
-					  std::cout << "a, k, k1, k2, kL2: " << a_val << " " << k << " " << k1 << " " << k2 << " " << p1 << '\n';
+					  std::cout << "a, k, k1, k2, D1, kL2: " << a_val << " " << k << " " << k1 << " " << k2 << " " << p1 << " " << p2 << '\n';
 
 					  // k, y, x=cos(theta), F2(k, y, x)
 					  // printf("%e %e %e %e \n", k, p1, p2, p3);
