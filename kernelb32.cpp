@@ -1,5 +1,8 @@
-// g++ -I/opt/apps/libs/gsl/2.1/gcc-4.4.7/include I/users/wrightw/work/cpplibs -L/opt/apps/libs/gsl/2.1/gcc-4.4.7/lib -lgsl -lstd++ -lgslcblas kernelb32.cpp
+//COMPILE + RUN COMMANDS//
+
+//g++ -I/opt/apps/libs/gsl/2.1/gcc-4.4.7/include -I/users/wrightw/work/cpplibs/headers -L/opt/apps/libs/gsl/2.1/gcc-4.4.7/lib -lgsl -lstdc++ -lgslcblas kernelb32.cpp /users/wrightw/work/cpplibs/cpps/*.cpp
 // ./a.out
+
 
 #include <gsl/gsl_errno.h>
 #include <gsl/gsl_matrix.h>
@@ -17,11 +20,9 @@
 #include "interpolation.h"
 
 
-
-
 const double pipi = 3.1415926535897;
 const	double H0 = 70.;///(3.09e+19);
-double omega0 = 0.99;//0.99;//
+double omega0 = 1.0;//0.99;//
 
 //F2 calc counter
 int count = 0;
@@ -93,12 +94,13 @@ double calc_D1(double k, std::vector<double>& k_arr, std::vector<double>& D1_arr
 	return s(k);
 }*/
 
-double calc_D1_2d(double a, double k, alglib::real_1d_array& a_arr, alglib::real_1d_array& k_arr, alglib::real_1d_array& D1_arr, alglib::spline2dinterpolant s){ //double a_arr[], double k_arr[], double D1_arr[]){
+double calc_D1_2d(double a, double k, alglib::real_1d_array& a_arr, alglib::real_1d_array& k_arr, alglib::real_1d_array& D1_arr)//, alglib::spline2dinterpolant s){ //double a_arr[], double k_arr[], double D1_arr[]){
+	{
 	// k=x, a=y
 	double v;
 	//double length_k_arr = sizeof(k_arr)/sizeof(*k_arr);
 	//double length_a_arr = sizeof(a_arr)/sizeof(*a_arr);
-	//alglib::spline2dinterpolant s;
+	alglib::spline2dinterpolant s;
 	alglib::spline2dbuildbicubicv(k_arr, k_arr.length(), a_arr, a_arr.length(), D1_arr, 1, s);//length_k_arr, a_arr, length_a_arr, D1_arr, 1, s); //1=dimension of D1 as scalar field
 	v = alglib::spline2dcalc(s, k, a);
 	return v;
@@ -162,8 +164,8 @@ static double Omega_M(double a, double OmegaM0){
 
   static double mu(double a, double k0, double OmegaM0, double p1, double p2, double p3 ){
   	double h0 = 1./2997.9;
-  //	return 1.; // GR
-  	return 1. + pow2(k0/a)/(3.*(pow2(k0/a)+pow3(OmegaM0/pow3(a)-4.*(OmegaM0-1.))/(2.*p1/pow2(h0)*pow2(4-3.*OmegaM0)))); //f(R) Hu- Sawicki
+  	return 1.; // GR
+  //	return 1. + pow2(k0/a)/(3.*(pow2(k0/a)+pow3(OmegaM0/pow3(a)-4.*(OmegaM0-1.))/(2.*p1/pow2(h0)*pow2(4-3.*OmegaM0)))); //f(R) Hu- Sawicki
   //	return 1.+1./(3.*beta(a,OmegaM0,p1)); //nDGP
   }
 
@@ -172,12 +174,12 @@ static double Omega_M(double a, double OmegaM0){
   	double h0 = 1./2997.9;
   	 return 0. ; // GR
 
-  	 return -(9.*pow2(k0/a)*pow2(OmegaM0/pow3(a))*pow(OmegaM0-4.*pow3(a)*(-1+OmegaM0),5))/
+  /*	 return -(9.*pow2(k0/a)*pow2(OmegaM0/pow3(a))*pow(OmegaM0-4.*pow3(a)*(-1+OmegaM0),5))/
   			    (48.*pow(a,15)*pow2(p1/pow2(h0))*pow2(HA(a,OmegaM0))*pow4(3.*OmegaM0-4.)
   			   *(pow2(k0/a)+pow3(OmegaM0-4.*pow3(a)*(OmegaM0-1.))/(2.*pow(a,9)*p1/pow2(h0)*pow2(3.*OmegaM0-4.)))
   			   *(pow2(k1/a)+pow3(OmegaM0-4.*pow3(a)*(OmegaM0-1.))/(2.*pow(a,9)*p1/pow2(h0)*pow2(3.*OmegaM0-4.)))
   			   *(pow2(k2/a)+pow3(OmegaM0-4.*pow3(a)*(OmegaM0-1.))/(2.*pow(a,9)*p1/pow2(h0)*pow2(3.*OmegaM0-4.)))); //f(R) Hu- Sawicki
-
+  */
 
   //  	return -1.*p2/(HA(a,OmegaM0)*HA(a,OmegaM0)*24.*pow(beta(a,OmegaM0,p1),3)*p1)*pow(OmegaM0/(a*a*a),2)*ker1(u1); //nDGP
   }
@@ -288,7 +290,7 @@ static double Omega_M(double a, double OmegaM0){
   	double par3;
 		int aa_num;
 		int kk1_num;
-		alglib::spline2dinterpolant ss;
+		//alglib::spline2dinterpolant ss;
 		//int kk2_num;
 
   };
@@ -306,7 +308,7 @@ static double Omega_M(double a, double OmegaM0){
   	double p3     = p.par3;
 		int a_num     = p.aa_num;
 		int k1_num 		= p.kk1_num;
-		alglib::spline2dinterpolant s = p.ss;
+		//alglib::spline2dinterpolant s = p.ss;
 		//int k2_num		= p.kk2_num;
 
 
@@ -328,8 +330,8 @@ static double Omega_M(double a, double OmegaM0){
 			std::cout << "D1_vec[" << a << ", "  << k_arr[j] << "]= " << D1a_arr[j] << '\n';
 		}*/
 
-		double D1k1 = calc_D1_2d(a, k1, aa_arr, kk_arr, D1D1_arr, s);
-		double D1k2 = calc_D1_2d(a, k2, aa_arr, kk_arr, D1D1_arr, s);
+		double D1k1 = calc_D1_2d(a, k1, aa_arr, kk_arr, D1D1_arr);//, s);
+		double D1k2 = calc_D1_2d(a, k2, aa_arr, kk_arr, D1D1_arr);//, s);
 
 		/*int sw = 0;
 		if(a_num==2){
@@ -386,7 +388,7 @@ static double Omega_M(double a, double OmegaM0){
   }
 
 
-  int solve2(int A_num, double A, double k, double OmegaM0, double par1, double par2, double par3, alglib::spline2dinterpolant s)//solve2(int A_num, double A, double k, double OmegaM0, double par1, double par2, double par3)
+  int solve2(int A_num, double A, double k, double OmegaM0, double par1, double par2, double par3)//, alglib::spline2dinterpolant s)//solve2(int A_num, double A, double k, double OmegaM0, double par1, double par2, double par3)
   {
   //#pragma omp parallel for schedule(dynamic)
 		for(int k1_num = 0; k1_num < Nk; k1_num++){
@@ -415,7 +417,7 @@ static double Omega_M(double a, double OmegaM0){
 
   			/*Parameters passed to system of equations */
   			// EDIT : If more than one gravity parameter is used, add them after p1
-  			struct param_type4 my_params2 = {k, k1, k2, k1dotk2, OmegaM0, par1, par2, par3, A_num, k1_num, s};//, k2_num};//
+  			struct param_type4 my_params2 = {k, k1, k2, k1dotk2, OmegaM0, par1, par2, par3, A_num, k1_num};//, s};//, k2_num};//
 
 
   			gsl_odeiv2_system sys = {ode2, jac, 2, &my_params2};
@@ -445,7 +447,11 @@ static double Omega_M(double a, double OmegaM0){
 
 /// OUTPUT SECTION ////
 
+
+
 int main(int argc, char* argv[]) {
+
+//try{
 
 	//output file name
 	const char* output = "kernelb32.dat";
@@ -453,7 +459,7 @@ int main(int argc, char* argv[]) {
 	/* Open output file */
 	FILE* fp = fopen(output, "w");
 
-	alglib::spline2dinterpolant s;
+	//alglib::spline2dinterpolant s;
 
 	double p1, p2, p3, p4, p5;
 
@@ -461,7 +467,7 @@ int main(int argc, char* argv[]) {
 
 		// Example a value
 		double a_val = a_ini + a_num*(a_fin-a_ini)/Na; //Linear sampling
-		std::cout << "a:" << a_num << "  " << a_val << '\n';
+		//std::cout << "a:" << a_num << "  " << a_val << '\n';
 
 		a_arr[a_num] = a_val;
 
@@ -491,16 +497,26 @@ int main(int argc, char* argv[]) {
 		kk_arr.setcontent(sizeof(k_arr)/sizeof(*k_arr), k_arr);
 		D1D1_arr.setcontent(sizeof(D1_arr)/sizeof(*D1_arr), D1_arr);
 
+	}
+
+	std::cout << "1ST ORDER COMPLETED" << '\n';
+
+	for(int a_num = 0 ; a_num <Na; a_num++){
+
+		double a_val = a_ini + a_num*(a_fin-a_ini)/Na; //Linear sampling
+		std::cout << "a:" << a_num << "  " << a_val << '\n';
+
 		for(int k_num = 0 ; k_num < Nk;  k_num ++){
 
 				// Example k value
 				double k = kmin + k_num*(kmax-kmin)/Nk;
+
 				//std::cout << "k:" << k << "\n";
 				//std::cout << "mu(k):" << mu(0.1, k, 0.24, 0.0001, 1., 1.) << "\n";
 
 				//std::cout << "D1(" << a_val << ")=" << D1_arr[a_num*Nk + k_num] << '\n';
 
-				solve2(a_num, a_val, k, omega0, 0.0001, 1., 1., s);
+				solve2(a_num, a_val, k, omega0, 0.0001, 1., 1.);//, s);
 
 				for(int k1_num = 0; k1_num < Nk; k1_num++){
 
@@ -527,7 +543,11 @@ int main(int argc, char* argv[]) {
 						p4 = -1.*kL2[k1_num*Nx+x_num]/(1.-pow2(k1dotk2)); //D2 = -(k.L2)/(1 - k1dotk2^2)
 						p5 = -7.*p4/(3.*pow2(D1_arr[a_num*Nk + k_num])); //Expect D2 = -3/7 D1^2 for EdS
 
-						std::cout << "a:" << a_val <<  " k:" << k << " k1:" << k1 << " x:" << x << " k1dotk2:" << k1dotk2 << " D1:" <<  p1 << " kL2:" << p2 << " D2/D1:" << p5 << '\n';
+						if( fabs(p5-1.) > 1e-10 ){
+							std::cout << "Warning bad D2/D1:" << fabs(p5-1.) << '\n';
+						}
+
+						//std::cout << "a:" << a_val <<  " k:" << k << " k1:" << k1 << " x:" << x << " k1dotk2:" << k1dotk2 << " D1:" <<  p1 << " kL2:" << p2 << " D2/D1:" << p5 << '\n';
 						//std::cout << "a, k, k1, x, k1dotk2, D1, kL2, ratio: " << a_val << " " << k << " " << k1 << " " << x << " " << p1 << " " << p2 << " " << p3 << '\n';
 					  //std::cout << "a, k, k1, k2, k1dotk2, D1, kL2: " << a_val << " " << k << " " << k1 << " " << k2 << " " << k1dotk2 << " " << p1 << " " << p2 << '\n';
 
@@ -538,7 +558,16 @@ int main(int argc, char* argv[]) {
 			}
 	}
 
+	std::cout << "2ND ORDER COMPLETED" << '\n';
+
 	/*close output file*/
 	fclose(fp);
+
+	//}
+
+	/*catch(alglib::ap_error e){
+		std::cout << "Error is:" << e.msg.c_str() << '\n';
+	}*/
+
 	return 0;
 }
