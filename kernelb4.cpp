@@ -25,6 +25,7 @@ double omega0 = 0.25;//0.99;//
 // MG SWITCHES //
 int MG = 1; //0=GR, 1=f(R), 2=DGP
 
+const double P1 = 0.00001; //MG parameter - fR_0 for f(R), Omega_rc for DGP
 
 // SAMPLING RANGES FOR a, k(and k1), x //
 // Number of time steps you wish to output between a_ini and a_fin
@@ -76,6 +77,13 @@ static double pow3(double base){
 
 static double pow4(double base){
 	return pow(base, 4.);}
+
+double round_to_digits(double value, int digits){
+	if(value == 0.0){ // otherwise it will return 'nan' due to the log10() of zero
+	  return 0.0;
+	}
+	double factor = pow(10.0, digits - ceil(log10(fabs(value))));
+	return round(value * factor) / factor;}
 
 
 // Normalized Hubble parameter H, a*H*dH/da, and Omega_M(a) for the background (LCDM)
@@ -214,7 +222,7 @@ int jac (double a, const double D[], double *dfdy, double dfdt[], void *params)
 		//Equations for 2nd order kernels: k.L2(k, k1, theta)
 		dDda[6] = D[7];
 		dDda[7] = -1.*( (3./a) + (dHA(a, OmegaM0)/HA(a, OmegaM0)) )*D[7] + 1.5*(Omega_M(a, OmegaM0)/pow2(a))*mu(a, k, OmegaM0, p1, p2, p3, mg)*D[6]
-		         + 1.5*(Omega_M(a, OmegaM0)/pow2(a))*mu(a, k, OmegaM0, p1, p2, p3, mg)*D[2]*D[4]*(1-pow2(k1dotk2)) + ( 2.*D[2]*D[4]/(pow4(a)*pow2(HA(a, OmegaM0))) )*gamma2(a, OmegaM0, k, k1, k2, p1, p2, p3, mg);
+		         + 1.5*(Omega_M(a, OmegaM0)/pow2(a))*mu(a, k, OmegaM0, p1, p2, p3, mg)*D[2]*D[4]*(1-pow2(k1dotk2));// + ( 2.*D[2]*D[4]/pow2(a) )*gamma2(a, OmegaM0, k, k1, k2, p1, p2, p3, mg);
 
   	return GSL_SUCCESS;
   }
@@ -315,7 +323,7 @@ int main(int argc, char* argv[]) {
 				//double k = kmin + k_num*(kmax-kmin)/Nk; //Linear sampling
 				double k = kmin * exp(k_num*log(kmax/kmin)/(Nk*1.-1.)); //Exponential sampling
 
-				solve2( a_val, k, omega0, 0.00001, 1., 1., MG);
+				solve2( a_val, k, omega0, P1, 1., 1., MG);
 
 
 				for(int k1_num = 0; k1_num < Nk; k1_num++){
@@ -349,7 +357,12 @@ int main(int argc, char* argv[]) {
 						}*/
 
 						//std::cout << "a:" << a_val <<  " k:" << k << " k1:" << k1 << " x:" << x << " k1dotk2:" << k1dotk2 << " D1:" <<  p1 << " kL2:" << p2 << " D2/D1:" << p5 << '\n';
-						std::cout << "a:" << a_val <<  " k:" << k << " k1:" << k1 << " k2:" << k2 << " x:" << x << " D1:" <<  p1 << " D2:" << p4 << " D2/D1:" << p5 << '\n';
+
+						if(a_num == Na-1 && k==k1 && round_to_digits(x, 2)==0.5){
+							std::cout << "a:" << a_val <<  " k:" << k << " k1:" << k1 << " k2:" << k2 << " x:" << x << " D1:" <<  p1 << " [k.L2]:" << p2 << " D2:" << p4 << " D2/D1:" << p5 << '\n';
+						}
+
+						//std::cout << "a:" << a_val <<  " k:" << k << " k1:" << k1 << " k2:" << k2 << " x:" << x << " D1:" <<  p1 << " D2:" << p2 << " D2/D1:" << p5 << '\n';
 
 					  // a, k, k1, k2, D1, D2
 					  fprintf(fp,"%e %e %e %e %e %e \n", a_val, k, k1, k2, p1, p4);
